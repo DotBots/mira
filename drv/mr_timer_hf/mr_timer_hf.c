@@ -19,6 +19,7 @@
 
 //=========================== define ===========================================
 
+#define TIMER_IRQ_PRIORITY (2U)  ///< Timer interrupt priority
 #define TIMER_MAX_CHANNELS (6U)
 
 typedef struct {
@@ -116,6 +117,7 @@ void mr_timer_hf_init(timer_hf_t timer) {
     _devs[timer].p->PRESCALER   = 4;  // Run TIMER at 1MHz
     _devs[timer].p->BITMODE     = (TIMER_BITMODE_BITMODE_32Bit << TIMER_BITMODE_BITMODE_Pos);
     _devs[timer].p->INTENSET    = (1 << (TIMER_INTENSET_COMPARE0_Pos + _devs[timer].cc_num));
+    NVIC_SetPriority(_devs[timer].irq, TIMER_IRQ_PRIORITY);
     NVIC_EnableIRQ(_devs[timer].irq);
 
     // Start the timer
