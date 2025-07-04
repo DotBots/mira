@@ -14,7 +14,9 @@
 
 #include "mr_device.h"
 #include "mr_gpio.h"
+#include "mr_ipc.h"
 #include "mira.h"
+#include "tz.h"
 
 //=========================== defines ==========================================
 
@@ -26,18 +28,30 @@ typedef struct {
 
 gateway_app_vars_t gateway_app_vars = { 0 };
 
+extern volatile __attribute__((section(".shared_data"))) ipc_shared_data_t ipc_shared_data;
+
 //=========================== prototypes =======================================
 
-void _setup_debug_pins(void);
+void setup_debug_pins(void);
+void app_mira_node_tx(const uint8_t *packet, uint8_t length);
 
 //=========================== main =============================================
 
 int main(void) {
     printf("Hello Mira Gateway App Core (UART) %016llX\n", mr_device_id());
 
-    _setup_debug_pins();
+    setup_debug_pins();
 
     // TODO: communicate with the network core via IPC, and make sure we start the network core
+
+    // Start the network core
+    release_network_core();
+
+    // APPMUTEX (address at 0x41030000 => periph ID is 48)
+    tz_configure_periph_non_secure(NRF_APPLICATION_PERIPH_ID_MUTEX);
+
+    // Initialize TDMA client drv in the net-core
+    mr_ipc_network_call(MR_IPC_MIRA_INIT_REQ);
 
     // TODO: communicate with an external device via UART (e.g. a computer or raspberry pi)
 
@@ -52,7 +66,13 @@ int main(void) {
 
 //=========================== private ========================================
 
-void _setup_debug_pins(void) {
+void app_mira_node_tx(const uint8_t *packet, uint8_t length) {
+    ipc_shared_data.tx_pdu.length = length;
+    memcpy((void *)ipc_shared_data.tx_pdu.buffer, packet, length);
+    ipc_network_call(MR_IPC_MIRA_NODE_TX_REQ);
+}
+
+void setup_debug_pins(void) {
     // Assign P0.28 to P0.31 to the network core (for debugging association.c via LEDs)
     NRF_P0_S->PIN_CNF[28] = GPIO_PIN_CNF_MCUSEL_NetworkMCU << GPIO_PIN_CNF_MCUSEL_Pos;
     NRF_P0_S->PIN_CNF[29] = GPIO_PIN_CNF_MCUSEL_NetworkMCU << GPIO_PIN_CNF_MCUSEL_Pos;

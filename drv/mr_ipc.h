@@ -20,9 +20,11 @@
 #define IPC_IRQ_PRIORITY (1)
 
 typedef enum {
-    MR_IPC_REQ_NONE,      ///< Sorry, but nothing
-    MR_IPC_RNG_INIT_REQ,  ///< Request to initialize the RNG peripheral
-    MR_IPC_RNG_READ_REQ,  ///< Request to read the RNG peripheral
+    MR_IPC_REQ_NONE,          ///< Sorry, but nothing
+    MR_IPC_MIRA_INIT_REQ,     ///< Request to initialize the mira drv
+    MR_IPC_MIRA_NODE_TX_REQ,  ///< Request to send a packet via the mira drv
+    MR_IPC_RNG_INIT_REQ,      ///< Request to initialize the RNG peripheral
+    MR_IPC_RNG_READ_REQ,      ///< Request to read the RNG peripheral
 } ipc_req_t;
 
 typedef enum {
@@ -35,10 +37,17 @@ typedef struct {
 } ipc_rng_data_t;
 
 typedef struct __attribute__((packed)) {
-    bool           net_ready;  ///< Network core is ready
-    bool           net_ack;    ///< Network core acked the latest request
-    ipc_req_t      req;        ///< IPC network request
-    ipc_rng_data_t rng;        ///< Rng share data
+    uint8_t length;             ///< Length of the pdu in bytes
+    uint8_t buffer[UINT8_MAX];  ///< Buffer containing the pdu data
+} ipc_radio_pdu_t;
+
+typedef struct __attribute__((packed)) {
+    bool            net_ready;  ///< Network core is ready
+    bool            net_ack;    ///< Network core acked the latest request
+    ipc_req_t       req;        ///< IPC network request
+    ipc_rng_data_t  rng;        ///< Rng share data
+    ipc_radio_pdu_t tx_pdu;     ///< TX PDU
+    ipc_radio_pdu_t rx_pdu;     ///< RX PDU
 } ipc_shared_data_t;
 
 //=========================== prototypes =======================================

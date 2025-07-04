@@ -15,6 +15,7 @@
 #include "mr_device.h"
 #include "mr_radio.h"
 #include "mr_timer_hf.h"
+#include "mr_ipc.h"
 #include "scheduler.h"
 #include "mira.h"
 #include "packet.h"
@@ -34,6 +35,8 @@ gateway_vars_t gateway_vars = { 0 };
 extern schedule_t schedule_minuscule, schedule_tiny, schedule_huge;
 schedule_t       *schedule_app = &schedule_huge;
 
+extern volatile __attribute__((section(".shared_data"))) ipc_shared_data_t ipc_shared_data;
+
 //=========================== prototypes =======================================
 
 void mira_event_callback(mr_event_t event, mr_event_data_t event_data);
@@ -49,6 +52,8 @@ int main(void) {
     mr_timer_hf_set_periodic_us(MIRA_APP_TIMER_DEV, 2, mr_scheduler_get_duration_us(), &mira_event_loop);
 
     // TODO: communicate with the application core via IPC
+    // Network core must remain on
+    ipc_shared_data.net_ready = true;
 
     while (1) {
         __SEV();
