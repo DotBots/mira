@@ -96,5 +96,6 @@ void board_set_led_app(led_color_t color) {
     }
 #endif
 #ifdef MIRA_BOARD_MINIMOTE
+    (void)color;
 #endif
 }

@@ -57,17 +57,22 @@ static void _mira_event_callback(mr_event_t event, mr_event_data_t event_data) {
             memcpy((void *)ipc_shared_data.radio_to_uart + 1, &event_data.data.node_info.node_id, sizeof(uint64_t));
             break;
         case MIRA_NODE_JOINED:
-            printf("%d New node joined: %016llX  (%d nodes connected)\n", now_ts_s, event_data.data.node_info.node_id, mira_gateway_count_nodes());
+        {
+            printf("%d + Node %016llX joined  (%d nodes connected)\n", now_ts_s, event_data.data.node_info.node_id, mira_gateway_count_nodes());
             ipc_shared_data.radio_to_uart_len = 1 + sizeof(uint64_t);
             ipc_shared_data.radio_to_uart[0]  = MIRA_EDGE_NODE_JOINED;
             memcpy((void *)ipc_shared_data.radio_to_uart + 1, &event_data.data.node_info.node_id, sizeof(uint64_t));
+
             break;
+        }
         case MIRA_NODE_LEFT:
-            printf("%d Node left: %016llX, reason: %u  (%d nodes connected)\n", now_ts_s, event_data.data.node_info.node_id, event_data.tag, mira_gateway_count_nodes());
+        {
+            printf("%d - Node %016llX left, reason: %u  (%d nodes connected)\n", now_ts_s, event_data.data.node_info.node_id, event_data.tag, mira_gateway_count_nodes());
             ipc_shared_data.radio_to_uart_len = 1 + sizeof(uint64_t);
             ipc_shared_data.radio_to_uart[0]  = MIRA_EDGE_NODE_LEFT;
             memcpy((void *)ipc_shared_data.radio_to_uart + 1, &event_data.data.node_info.node_id, sizeof(uint64_t));
             break;
+        }
         case MIRA_ERROR:
             printf("Error, reason: %u\n", event_data.tag);
             break;
@@ -102,7 +107,7 @@ int main(void) {
 
     mira_init(MIRA_GATEWAY, MIRA_NET_ID_DEFAULT, schedule_app, &_mira_event_callback);
 
-    mr_timer_hf_set_periodic_us(MIRA_APP_TIMER_DEV, 2, mr_scheduler_get_duration_us(), &mira_event_loop);
+    // mr_timer_hf_set_periodic_us(MIRA_APP_TIMER_DEV, 2, mr_scheduler_get_duration_us(), &mira_event_loop);
     mr_timer_hf_set_periodic_us(MIRA_APP_TIMER_DEV, 3, mr_scheduler_get_duration_us() * 10, &_to_uart_gateway_loop);
 
     // Unlock the application core
@@ -110,6 +115,8 @@ int main(void) {
 
     while (1) {
         __WFE();
+
+        mira_event_loop();
 
         if (_app_vars.uart_to_radio_packet_ready) {
             _app_vars.uart_to_radio_packet_ready = false;

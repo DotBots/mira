@@ -45,7 +45,7 @@
     link_time_optimization="No"
     linker_additional_options="--gc-sections"
     linker_memory_map_file="$(ProjectDir)/../../nRF/Setup/nRF52840_xxAA_MemoryMap.xml"
-    linker_output_format="bin"
+    linker_output_format="hex"
     linker_printf_fmt_level="int"
     linker_printf_fp_enabled="Float"
     linker_printf_width_precision_supported="Yes"

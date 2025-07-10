@@ -64,9 +64,21 @@ uint8_t mr_bloom_gateway_copy(uint8_t *output) {
     return MIRA_BLOOM_M_BYTES;
 }
 
+#include "mr_gpio.h"  // for debugging
+// pins connected to logic analyzer, variable names reflect the channel number
+mr_gpio_t _pin3 = { .port = 1, .pin = 5 };
+#define DEBUG_GPIO_TOGGLE(pin) mr_gpio_toggle(pin)
+#define DEBUG_GPIO_SET(pin)    mr_gpio_set(pin)
+#define DEBUG_GPIO_CLEAR(pin)  mr_gpio_clear(pin)
+
 void mr_bloom_gateway_compute(void) {
+    DEBUG_GPIO_SET(&_pin3);
     bloom_vars.is_available = false;
-    memset(bloom_vars.bloom, 0, MIRA_BLOOM_M_BYTES);
+    bloom_vars.is_dirty     = false;  // avoid potential concurrent computation with event loop
+    memset(bloom_vars.bloom, 0xFF, MIRA_BLOOM_M_BYTES);
+    bloom_vars.is_available = true;
+    DEBUG_GPIO_CLEAR(&_pin3);
+    return;
 
     schedule_t *schedule_ptr = mr_scheduler_get_active_schedule_ptr();
 
@@ -89,6 +101,7 @@ void mr_bloom_gateway_compute(void) {
         }
     }
     bloom_vars.is_available = true;
+    DEBUG_GPIO_CLEAR(&_pin3);
 }
 
 void mr_bloom_gateway_event_loop(void) {

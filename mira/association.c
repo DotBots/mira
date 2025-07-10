@@ -59,15 +59,17 @@ mr_gpio_t led3 = { .port = 0, .pin = 31 };
 
 //=========================== defines =========================================
 
-#define MIRA_BACKOFF_N_MIN 5
-#define MIRA_BACKOFF_N_MAX 9
+#define MIRA_BACKOFF_N_MIN 6
+#define MIRA_BACKOFF_N_MAX 11
 
-#define MIRA_JOIN_TIMEOUT_SINCE_SYNCED (1000 * 1000 * 5)  // 5 seconds. after this time, go back to scanning. NOTE: have it be based on slotframe size?
+#define MIRA_JOIN_TIMEOUT_SINCE_SYNCED (1000 * 1000 * 8)  // 5 seconds. after this time, go back to scanning. NOTE: have it be based on slotframe size?
 
 // after this amount of time, consider that a join request failed (very likely due to a collision during the shared uplink slot)
-// currently set to 2 slot durations -- enough when the schedule always have a shared-uplink followed by a downlink,
+// currently set to 3 slot durations -- enough when the schedule always have a shared-uplink followed by a downlink,
 // and the gateway prioritizes join responses over all other downstream packets
-#define MIRA_JOINING_STATE_TIMEOUT ((MIRA_WHOLE_SLOT_DURATION * (2 - 1)) + (MIRA_WHOLE_SLOT_DURATION / 2))  // apply a half-slot duration just so that the timeout happens before the slot boundary
+#define MIRA_JOINING_STATE_TIMEOUT ((MIRA_WHOLE_SLOT_DURATION * (3 - 1)) + (MIRA_WHOLE_SLOT_DURATION / 2))  // apply a half-slot duration just so that the timeout happens before the slot boundary
+
+#define MIRA_JOINED_GRACE_NON_LEAVE_PERIOD (1000 * 1000 * 3)  // 3 seconds. if just recently joined, force not leave based on timeout
 
 typedef struct {
     mr_assoc_state_t state;
@@ -267,6 +269,12 @@ void mr_assoc_node_register_collision_backoff(void) {
 bool mr_assoc_node_should_leave(uint32_t asn) {
     if (assoc_vars.state != JOIN_STATE_JOINED) {
         // can only lose the gateway when already joined
+        return false;
+    }
+
+    uint32_t now_ts = mr_timer_hf_now(MIRA_TIMER_DEV);
+    if (now_ts - assoc_vars.last_state_change_ts < MIRA_JOINED_GRACE_NON_LEAVE_PERIOD) {
+        // if the node just recently joined, do not leave
         return false;
     }
 
