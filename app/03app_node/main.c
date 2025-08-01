@@ -28,7 +28,9 @@
 
 #define LATENCY_MAGIC_BYTE_1 0x4C
 #define LATENCY_MAGIC_BYTE_2 0x54
-#define LOAD_PACKET_BYTE     'L'  // Define the load packet byte ('L')
+#define LOAD_PACKET_BYTE     'L'
+
+static const uint8_t NORMAL_DATA_PAYLOAD[] = "NORMAL_APP_DATA";
 
 typedef struct {
     mr_event_t      event;
@@ -36,12 +38,15 @@ typedef struct {
     bool            event_ready;
 } node_vars_t;
 
+typedef struct __attribute__((packed)) {
+    uint32_t rx_app_packets;
+    uint32_t tx_app_packets;
+} node_stats_t;
+
 //=========================== variables ========================================
 
-node_vars_t node_vars = { 0 };
-
-uint8_t payload[]   = { 0xF0, 0xF0, 0xF0, 0xF0, 0xF0 };
-uint8_t payload_len = 5;
+node_vars_t  node_vars  = { 0 };
+node_stats_t node_stats = { 0 };
 
 extern schedule_t schedule_minuscule, schedule_tiny, schedule_huge;
 
@@ -78,25 +83,16 @@ int main(void) {
                 case MARI_NEW_PACKET:
                 {
                     mari_packet_t packet = event_data.data.new_packet;
-                    printf("RX %u B: src=%016llX dst=%016llX (rssi %d) payload=", packet.len, packet.header->src, packet.header->dst, mr_radio_rssi());
-                    for (int i = 0; i < packet.payload_len; i++) {
-                        printf("%02X ", packet.payload[i]);
-                    }
-                    printf("\n");
 
-                    // Check for latency packet
                     if (packet.payload_len >= 2 &&
                         packet.payload[0] == LATENCY_MAGIC_BYTE_1 &&
                         packet.payload[1] == LATENCY_MAGIC_BYTE_2) {
-                        // Echo the latency packet back for RTT measurement
-                        printf("Latency packet detected, echoing back.\n");
                         mari_node_tx_payload(packet.payload, packet.payload_len);
-                    }
-
-                    else if (packet.payload_len == 1 && packet.payload[0] == LOAD_PACKET_BYTE) {
-                        printf("Load packet detected, ignoring (not replying).\n");
-                    } else {
-                        mari_node_tx_payload(payload, payload_len);
+                    } else if (packet.payload_len == sizeof(NORMAL_DATA_PAYLOAD) - 1 &&
+                               strncmp((char *)packet.payload, (char *)NORMAL_DATA_PAYLOAD, sizeof(NORMAL_DATA_PAYLOAD) - 1) == 0) {
+                        node_stats.rx_app_packets++;
+                        mari_node_tx_payload((uint8_t *)&node_stats, sizeof(node_stats_t));
+                        node_stats.tx_app_packets++;
                     }
                     break;
                 }
@@ -118,9 +114,6 @@ int main(void) {
                     board_set_mari_status(RED);
                     break;
                 }
-                case MARI_ERROR:
-                    printf("Error\n");
-                    break;
                 default:
                     break;
             }
@@ -141,7 +134,5 @@ static void mari_event_callback(mr_event_t event, mr_event_data_t event_data) {
 //=========================== private =========================================
 
 static void tx_if_connected(void) {
-    if (mari_node_is_connected()) {
-        mari_node_tx_payload(payload, payload_len);
-    }
+    // This function is not used in the current logic but kept for reference.
 }
