@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include "models.h"
 #include "mr_device.h"
 
 #include "scheduler.h"
@@ -32,12 +33,20 @@ typedef struct {
 
     uint8_t num_assigned_uplink_nodes;  // number of nodes with assigned uplink slots
 
+    size_t current_cell_index;  // index of the current cell
+
     // static data
     schedule_t *available_schedules[MARI_N_SCHEDULES];
     size_t      available_schedules_len;
 } schedule_vars_t;
 
+typedef struct {
+    uint64_t sched_usage[MARI_STATS_SCHED_USAGE_SIZE];
+} schedule_stats_t;
+
 static schedule_vars_t _schedule_vars = { 0 };
+
+static schedule_stats_t _schedule_stats = { 0 };
 
 //========================== prototypes ========================================
 
@@ -46,6 +55,9 @@ void _compute_gateway_action(cell_t cell, mr_slot_info_t *slot_info);
 
 // compute the radio action when the node is an end device
 void _compute_node_action(cell_t cell, mr_slot_info_t *slot_info);
+
+// encode the schedule usage stats
+void _encode_schedule_usage_stats(uint8_t cell_index, uint8_t radio_action);
 
 //=========================== public ===========================================
 
@@ -156,8 +168,8 @@ uint8_t mr_scheduler_gateway_get_nodes(uint64_t *nodes) {
 
 mr_slot_info_t mr_scheduler_tick(uint64_t asn) {
     // get the current cell
-    size_t cell_index = asn % (_schedule_vars.active_schedule_ptr)->n_cells;
-    cell_t cell       = (_schedule_vars.active_schedule_ptr)->cells[cell_index];
+    _schedule_vars.current_cell_index = asn % (_schedule_vars.active_schedule_ptr)->n_cells;
+    cell_t cell                       = (_schedule_vars.active_schedule_ptr)->cells[_schedule_vars.current_cell_index];
 
     mr_slot_info_t slot_info = {
         .radio_action = MARI_RADIO_ACTION_SLEEP,
@@ -172,7 +184,7 @@ mr_slot_info_t mr_scheduler_tick(uint64_t asn) {
     }
 
     // if the slotframe wrapped, keep track of how many slotframes have passed (used to cycle beacon channels)
-    if (asn != 0 && cell_index == 0) {
+    if (asn != 0 && _schedule_vars.current_cell_index == 0) {
         _schedule_vars.slotframe_counter++;
     }
 
@@ -217,6 +229,27 @@ cell_t mr_scheduler_node_peek_slot(uint64_t asn) {
     cell_t cell       = (_schedule_vars.active_schedule_ptr)->cells[cell_index];
 
     return cell;
+}
+
+void mr_scheduler_stats_register_used_slot(bool used) {
+    uint8_t encoded_action = 0;
+    if (used) {
+        encoded_action = 1;
+    }
+    uint8_t cell_index = _schedule_vars.current_cell_index;
+    if (cell_index < 64) {
+        _schedule_stats.sched_usage[0] |= (uint64_t)encoded_action << cell_index;
+    } else if (cell_index < 128) {
+        _schedule_stats.sched_usage[1] |= (uint64_t)encoded_action << (cell_index - 64);
+    } else if (cell_index < 192) {
+        _schedule_stats.sched_usage[2] |= (uint64_t)encoded_action << (cell_index - 128);
+    } else {
+        _schedule_stats.sched_usage[3] |= (uint64_t)encoded_action << (cell_index - 192);
+    }
+}
+
+uint64_t *mr_scheduler_get_schedule_usage(void) {
+    return _schedule_stats.sched_usage;
 }
 
 //=========================== private ==========================================

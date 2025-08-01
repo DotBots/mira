@@ -21,6 +21,8 @@
 
 //=========================== defines ==========================================
 
+#define MARI_STATS_SCHED_USAGE_SIZE 4  // supports schedules with up to 256 cells
+
 //=========================== prototypes ==========================================
 
 /**
@@ -71,6 +73,10 @@ schedule_t *mr_scheduler_get_active_schedule_ptr(void);
 uint8_t mr_scheduler_get_active_schedule_slot_count(void);
 
 cell_t mr_scheduler_node_peek_slot(uint64_t asn);
+
+void mr_scheduler_stats_register_used_slot(bool used);
+
+uint64_t *mr_scheduler_get_schedule_usage(void);
 
 /**
  * @brief Computes the channel to be used in a given slot.

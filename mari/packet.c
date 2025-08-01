@@ -52,15 +52,17 @@ size_t mr_build_packet_beacon(uint8_t *buffer, uint16_t net_id, uint64_t asn, ui
 }
 
 size_t mr_build_uart_packet_gateway_info(uint8_t *buffer) {
-    uint64_t device_id   = mr_device_id();
-    uint16_t net_id      = mr_assoc_get_network_id();
-    uint16_t schedule_id = mr_scheduler_get_active_schedule_id();
+    uint64_t  device_id   = mr_device_id();
+    uint16_t  net_id      = mr_assoc_get_network_id();
+    uint16_t  schedule_id = mr_scheduler_get_active_schedule_id();
+    uint64_t *sched_usage = mr_scheduler_get_schedule_usage();
 
     memcpy(buffer, &device_id, sizeof(uint64_t));
     memcpy(buffer + sizeof(uint64_t), &net_id, sizeof(uint16_t));
     memcpy(buffer + sizeof(uint64_t) + sizeof(uint16_t), &schedule_id, sizeof(uint16_t));
+    memcpy(buffer + sizeof(uint64_t) + sizeof(uint16_t) + sizeof(uint16_t), sched_usage, sizeof(uint64_t) * MARI_STATS_SCHED_USAGE_SIZE);
 
-    return sizeof(uint64_t) + sizeof(uint16_t) + sizeof(uint16_t);
+    return sizeof(uint64_t) + sizeof(uint16_t) + sizeof(uint16_t) + sizeof(uint64_t) * MARI_STATS_SCHED_USAGE_SIZE;
 }
 
 //=========================== private ==========================================

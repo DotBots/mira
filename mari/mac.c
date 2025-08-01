@@ -420,10 +420,12 @@ static void activity_ti1(void) {
         mr_radio_disable();
         mr_radio_set_channel(mac_vars.current_slot_info.channel);
         mr_radio_tx_prepare(packet, packet_len);
+        mr_scheduler_stats_register_used_slot(true);
     } else {
         // nothing to tx
         set_slot_state(STATE_SLEEP);
         end_slot();
+        mr_scheduler_stats_register_used_slot(false);
     }
 }
 
@@ -501,6 +503,8 @@ static void activity_ri3(uint32_t ts) {
     // called by: radio isr
     set_slot_state(STATE_RX_DATA);
 
+    mr_scheduler_stats_register_used_slot(true);
+
     // cancel timer for rx_guard
     mr_timer_hf_cancel(MARI_TIMER_DEV, MARI_TIMER_CHANNEL_2);
 
@@ -511,6 +515,8 @@ static void activity_rie1(void) {
     // rie1: didn't receive start of packet before rx_guard, abort
     // called by: timer isr
     set_slot_state(STATE_SLEEP);
+
+    mr_scheduler_stats_register_used_slot(false);
 
     // cancel timer for rx_max (rie2)
     mr_timer_hf_cancel(MARI_TIMER_DEV, MARI_TIMER_CHANNEL_3);
